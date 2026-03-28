@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Türk Müzik Arşivi</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+        
+        .container { display: flex; min-height: 100vh; }
+        
+        /* SOL PANEL */
+        .sidebar { width: 280px; background: #fff; padding: 24px; border-right: 1px solid #e0e0e0; position: fixed; height: 100vh; overflow-y: auto; }
+        
+        .sidebar h1 { font-size: 18px; font-weight: 700; margin-bottom: 24px; color: #111; }
+        
+        .search-wrapper { position: relative; margin-bottom: 24px; }
+        .search-wrapper input { width: 100%; padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; }
+        .search-wrapper input:focus { border-color: #111; }
+        
+        .suggestions { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #ddd; border-top: none; border-radius: 0 0 8px 8px; z-index: 100; display: none; }
+        .suggestion-item { padding: 10px 14px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f0f0f0; }
+        .suggestion-item:hover { background: #f5f5f5; }
+        .suggestion-item .isim { font-weight: 600; }
+        .suggestion-item .detay { color: #888; font-size: 12px; margin-top: 2px; }
+        .suggestion-item .spotify-btn { display: inline-block; margin-top: 4px; font-size: 11px; color: #1db954; text-decoration: none; }
+        
+        .filter-section { margin-bottom: 20px; }
+        .filter-section label { font-size: 12px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 8px; }
+        .filter-section select { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; background: #fff; outline: none; cursor: pointer; }
+        .filter-section select:focus { border-color: #111; }
+        
+        .filter-btn { width: 100%; padding: 10px; background: #111; color: #fff; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; margin-top: 8px; }
+        .filter-btn:hover { background: #333; }
+        .reset-btn { width: 100%; padding: 10px; background: #fff; color: #111; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; cursor: pointer; margin-top: 8px; }
+        .reset-btn:hover { background: #f5f5f5; }
+
+        /* SAG PANEL */
+        .main { margin-left: 280px; padding: 24px; flex: 1; }
+        
+        .sonuc-bilgi { font-size: 13px; color: #888; margin-bottom: 16px; }
+        
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+        
+        .kart { background: #fff; border-radius: 10px; padding: 16px; border: 1px solid #e0e0e0; transition: box-shadow 0.2s; }
+        .kart:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .kart .isim { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+        .kart .bilgi { font-size: 12px; color: #888; margin-bottom: 4px; }
+        .kart .bilgi span { color: #333; }
+        .kart .genre-tag { display: inline-block; background: #f0f0f0; padding: 3px 8px; border-radius: 4px; font-size: 11px; margin-top: 8px; }
+        .kart .spotify-link { display: inline-block; margin-top: 10px; font-size: 12px; color: #1db954; text-decoration: none; font-weight: 600; }
+        .kart .spotify-link:hover { text-decoration: underline; }
+
+        .pagination { display: flex; gap: 8px; margin-top: 24px; justify-content: center; flex-wrap: wrap; }
+        .pagination button { padding: 6px 12px; border: 1px solid #ddd; background: #fff; border-radius: 6px; cursor: pointer; font-size: 13px; }
+        .pagination button.active { background: #111; color: #fff; border-color: #111; }
+        .pagination button:hover:not(.active) { background: #f5f5f5; }
+
+        .bos { text-align: center; color: #aaa; padding: 48px; font-size: 15px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="sidebar">
+        <h1>🎵 Türk Müzik Arşivi</h1>
+
+        <div class="search-wrapper">
+            <input type="text" id="search-input" placeholder="Sanatçı ara..." autocomplete="off">
+            <div class="suggestions" id="suggestions"></div>
+        </div>
+
+        <div class="filter-section">
+            <label>Tür</label>
+            <select id="filter-genre">
+                <option value="">Tümü</option>
+                {% for g in genres %}
+                <option value="{{ g }}">{{ g }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-section">
+            <label>Şehir</label>
+            <select id="filter-sehir">
+                <option value="">Tümü</option>
+                {% for s in sehirler %}
+                <option value="{{ s }}">{{ s }}</option>
+                {% endfor %}
+        </select>
+        </div>
+
+        <div class="filter-section">
+            <label>Solo / Grup</label>
+            <select id="filter-tip">
+                <option value="">Tümü</option>
+                {% for t in tipler %}
+                <option value="{{ t }}">{{ t }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button class="filter-btn" onclick="filtrele(1)">Filtrele</button>
+        <button class="reset-btn" onclick="sifirla()">Sıfırla</button>
+    </div>
+
+    <div class="main">
+        <div class="sonuc-bilgi" id="sonuc-bilgi"></div>
+        <div class="grid" id="grid"></div>
+        <div class="pagination" id="pagination"></div>
+    </div>
+</div>
+
+<script>
+let mevcutSayfa = 1;
+
+// Sayfa açılınca tüm listeyi göster
+window.onload = () => filtrele(1);
+
+// Arama kutusu
+const searchInput = document.getElementById("search-input");
+const suggestions = document.getElementById("suggestions");
+
+searchInput.addEventListener("input", () => {
+    const q = searchInput.value.trim();
+    if (q.length < 2) {
+        suggestions.style.display = "none";
+        return;
+    }
+    fetch(`/ara?q=${encodeURIComponent(q)}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.length === 0) {
+                suggestions.style.display = "none";
+                return;
+            }
+            suggestions.innerHTML = data.map(s => `
+                <div class="suggestion-item" onclick="sanatciSec('${s.isim.replace(/'/g, "\\'")}')">
+                    <div class="isim">${s.isim}</div>
+                    <div class="detay">${s.genre || ""} ${s.sehir ? "· " + s.sehir : ""} · ${s.takipci.toLocaleString()} takipçi</div>
+                    ${s.spotify_id ? `<a class="spotify-btn" href="https://open.spotify.com/artist/${s.spotify_id}" target="_blank" onclick="event.stopPropagation()">▶ Spotify'da Aç</a>` : ""}
+                </div>
+            `).join("");
+            suggestions.style.display = "block";
+        });
+});
+
+document.addEventListener("click", (e) => {
+    if (!e.target.closest(".search-wrapper")) {
+        suggestions.style.display = "none";
+    }
+});
+
+function sanatciSec(isim) {
+    searchInput.value = isim;
+    suggestions.style.display = "none";
+    fetch(`/ara?q=${encodeURIComponent(isim)}`)
+        .then(r => r.json())
+        .then(data => {
+            const s = data.find(x => x.isim.toLowerCase() === isim.toLowerCase()) || data[0];
+            if (s) kartGoster([s], 1, 1);
+        });
+}
+
+function filtrele(sayfa) {
+    mevcutSayfa = sayfa;
+    const genre = document.getElementById("filter-genre").value;
+    const sehir = document.getElementById("filter-sehir").value;
+    const tip = document.getElementById("filter-tip").value;
+
+    fetch(`/filtrele?genre=${encodeURIComponent(genre)}&sehir=${encodeURIComponent(sehir)}&tip=${encodeURIComponent(tip)}&sayfa=${sayfa}`)
+        .then(r => r.json())
+        .then(data => kartGoster(data.sanatcilar, data.sayfa, data.toplam_sayfa, data.toplam));
+}
+
+function kartGoster(sanatcilar, sayfa, toplamSayfa, toplam) {
+    const grid = document.getElementById("grid");
+    const bilgi = document.getElementById("sonuc-bilgi");
+    const pagination = document.getElementById("pagination");
+
+    if (toplam !== undefined) {
+        bilgi.textContent = `${toplam.toLocaleString()} sanatçı bulundu`;
+    }
+
+    if (sanatcilar.length === 0) {
+        grid.innerHTML = '<div class="bos">Sonuç bulunamadı.</div>';
+        pagination.innerHTML = "";
+        return;
+    }
+
+    grid.innerHTML = sanatcilar.map(s => `
+        <div class="kart">
+            <div class="isim">${s.isim}</div>
+            ${s.genre ? `<span class="genre-tag">${s.genre}</span>` : ""}
+            ${s.sehir ? `<div class="bilgi">📍 <span>${s.sehir}</span></div>` : ""}
+            ${s.tip ? `<div class="bilgi">👤 <span>${s.tip}</span></div>` : ""}
+            <div class="bilgi">🎧 <span>${s.takipci.toLocaleString()} takipçi</span></div>
+            ${s.spotify_id ? `<a class="spotify-link" href="https://open.spotify.com/artist/${s.spotify_id}" target="_blank">▶ Spotify'da Aç</a>` : ""}
+        </div>
+    `).join("");
+
+    // Pagination
+    if (toplamSayfa > 1) {
+        let btns = "";
+        for (let i = 1; i <= toplamSayfa; i++) {
+            if (i === 1 || i === toplamSayfa || Math.abs(i - sayfa) <= 2) {
+                btns += `<button class="${i === sayfa ? 'active' : ''}" onclick="filtrele(${i})">${i}</button>`;
+            } else if (Math.abs(i - sayfa) === 3) {
+                btns += `<button disabled>...</button>`;
+            }
+        }
+        pagination.innerHTML = btns;
+    } else {
+        pagination.innerHTML = "";
+    }
+}
+
+function sifirla() {
+    document.getElementById("filter-genre").value = "";
+    document.getElementById("filter-sehir").value = "";
+    document.getElementById("filter-tip").value = "";
+    searchInput.value = "";
+    filtrele(1);
+}
+</script>
+</body>
+</html>
